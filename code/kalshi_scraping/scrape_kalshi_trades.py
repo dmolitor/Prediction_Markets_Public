@@ -96,9 +96,10 @@ PRIVATE_KEY = os.getenv("KALSHI_PRIVATE_KEY")
 if not PRIVATE_KEY:
     raise ValueError("Missing Kalshi private key in environment variables")
 
+# Convert the PEM string into a usable private key object
 private_key = serialization.load_pem_private_key(
-    PRIVATE_KEY.encode(),
-    password=None
+    PRIVATE_KEY.encode("utf-8"),
+    password=None,
 )
 # KEYID =  os.getenv('KALSHI_KEYID')
 # KEYFILE = os.getenv('KALSHI_KEYFILE')
@@ -119,7 +120,7 @@ private_key = serialization.load_pem_private_key(
 # Initialize the HTTP client
 client = KalshiHttpClient(
     key_id=KEYID,
-    private_key=PRIVATE_KEY,
+    private_key=private_key,
     environment=env
 )
 
