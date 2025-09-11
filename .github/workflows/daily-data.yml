@@ -44,10 +44,10 @@ jobs:
           Rscript -e 'install.packages(c("tidyverse","lubridate","av","matrixStats","gganimate"), repos="https://cloud.r-project.org")'
 
       - name: Run R script (CDFs)
-        run: Rscript code/convert_trades_to_pdf/convert_trade_level_data_cdfs.R
+        run: Rscript code/convert_trades_to_pdfs/convert_trade_level_data_cdfs.R
 
       - name: Run R script (PDFs)
-        run: Rscript code/convert_trades_to_pdf/convert_trade_level_data_pdfs.R
+        run: Rscript code/convert_trades_to_pdfs/convert_trade_level_data_pdfs.R
 
       # -----------------------
       # Commit results
