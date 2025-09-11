@@ -71,8 +71,11 @@ from dotenv import load_dotenv
 from cryptography.hazmat.primitives import serialization
 
 # Set path according to your own computer directory
-os.chdir('/Users/jaredkatz/Documents/Research/PredictionMarketsPublic')
-sys.path.append('code/kalshi_scraping')
+# os.chdir('/Users/jaredkatz/Documents/Research/PredictionMarketsPublic')
+# sys.path.append('code/kalshi_scraping')
+
+repo_root = os.getcwd()
+sys.path.append(os.path.join(repo_root, "code/kalshi_scraping"))
 
 # import the file that lets us connect to the Kalshi API client
 from clients_kalshi import KalshiHttpClient, KalshiWebSocketClient, Environment
@@ -83,29 +86,40 @@ from clients_kalshi import KalshiHttpClient, KalshiWebSocketClient, Environment
 ##################################
 
 # Load environment variables. You'll want to replace this with your own .env in this folder (see example.env)
-load_dotenv('env.env')
+# load_dotenv('env.env')
 
 env = Environment.PROD # toggle environment here
-KEYID =  os.getenv('KALSHI_KEYID')
-KEYFILE = os.getenv('KALSHI_KEYFILE')
+
+KEYID = os.getenv("KALSHI_KEYID")
+PRIVATE_KEY = os.getenv("KALSHI_PRIVATE_KEY")
+
+if not PRIVATE_KEY:
+    raise ValueError("Missing Kalshi private key in environment variables")
+
+private_key = serialization.load_pem_private_key(
+    PRIVATE_KEY.encode(),
+    password=None
+)
+# KEYID =  os.getenv('KALSHI_KEYID')
+# KEYFILE = os.getenv('KALSHI_KEYFILE')
 
 # Use your credentials to connect to the Kalshi API
-try:
-    with open(KEYFILE, "rb") as key_file:
-        print(key_file)
-        private_key = serialization.load_pem_private_key(
-            key_file.read(),
-            password=None  
-        )
-except FileNotFoundError:
-    raise FileNotFoundError(f"Private key file not found at {KEYFILE}")
-except Exception as e:
-    raise Exception(f"Error loading private key: {str(e)}")
+# try:
+#     with open(KEYFILE, "rb") as key_file:
+#         print(key_file)
+#         private_key = serialization.load_pem_private_key(
+#             key_file.read(),
+#             password=None  
+#         )
+# except FileNotFoundError:
+#     raise FileNotFoundError(f"Private key file not found at {KEYFILE}")
+# except Exception as e:
+#     raise Exception(f"Error loading private key: {str(e)}")
 
 # Initialize the HTTP client
 client = KalshiHttpClient(
     key_id=KEYID,
-    private_key=private_key,
+    private_key=PRIVATE_KEY,
     environment=env
 )
 
