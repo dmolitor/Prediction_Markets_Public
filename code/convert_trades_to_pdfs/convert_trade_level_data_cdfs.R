@@ -176,7 +176,7 @@ fill_dataless_days <- function(df) {
 #'
 #' @param df A data frame with columns: date, expiry_date, contract_preamble, strike, yes_price, daily_volume.
 #' @return A cleaned data frame with bin_high and adjusted_yes_price columns added.
-clean_data <- function(df) {
+clean_data <- function(df, type='left-to-right') {
   
   # remove all observations further than 6 months before contract expiry
   # df <- df %>% mutate(will_remove = (date >= expiry_date - months(6)))
@@ -194,15 +194,30 @@ clean_data <- function(df) {
   # adjusted price equal to the contract that dominates it
   # In other words, we impose monotonic increasing yes_prices
   # from high (least likely to occur) to low (most likely to occur) strikes
-  df <- df %>%
-    group_by(contract_preamble, date) %>%
-    arrange(desc(strike), .by_group = TRUE) %>%
-    mutate(
-      adjusted_yes_price = cummax(yes_price), 
-    ) %>%
-    ungroup()
-  
-  return(df)
+  if(type == 'right-to-left') {
+    df <- df %>%
+      group_by(contract_preamble, date) %>%
+      arrange(desc(strike), .by_group = TRUE) %>%
+      mutate(
+        adjusted_yes_price = cummax(yes_price), 
+      ) %>%
+      ungroup()
+    
+    return(df)
+    
+  # in this specification, we set the price of the "dominating contract" equal to the one it dominates
+  } else if (type == 'left-to-right') {
+    df_dropping <- df %>%
+      group_by(contract_preamble, date) %>%
+      arrange(desc(-strike), .by_group = TRUE) %>%
+      mutate(
+        adjusted_yes_price = cummin(yes_price), 
+        
+      ) %>%
+      ungroup()
+    
+  }
+ 
   
 }
 
@@ -217,7 +232,7 @@ clean_data <- function(df) {
 #' @param days_before_horizon A value for removing data too far away from the horizon from the dataset
 #' @return A data frame with an added `probability` column representing
 #'         approximate probability mass for each strike bin.
-convert_to_probabilities <- function(df, strike_int, days_before_horizon) {
+convert_to_probabilities <- function(df, strike_int, days_before_horizon, type = 'swap') {
   
   # Add low bins representing if even the minimum strike listed was not cleared
   # In order to not skew moments towards 0, the low bin is marked as the
@@ -303,17 +318,24 @@ convert_to_probabilities <- function(df, strike_int, days_before_horizon) {
   
   # Apply our algorithm to the dataframe until we go through an iteration
   # where no bins are swapped
-  still_need_to_swap <- TRUE
-  while(still_need_to_swap) {
+  if (type == 'swap') {
+    still_need_to_swap <- TRUE
+    while(still_need_to_swap) {
+      
+      df <- df %>%
+        group_by(contract_preamble, date) %>%
+        group_split() %>%
+        map_dfr(swap_probabilities)
+      
+      print(df %>% filter(swapped == TRUE))
+      still_need_to_swap <- any(df$swapped)
+      df <- df %>% select(-swapped)
+      
+    }
+  # Just drop observed arbitrage violations
+  } else if(type == 'drop') {
     
-    df <- df %>%
-      group_by(contract_preamble, date) %>%
-      group_split() %>%
-      map_dfr(swap_probabilities)
     
-    print(df %>% filter(swapped == TRUE))
-    still_need_to_swap <- any(df$swapped)
-    df <- df %>% select(-swapped)
     
   }
   
@@ -393,28 +415,53 @@ extract_distributions <- function(input_file, output_distributions, output_momen
   write_csv(df, output_distributions)
 }
 
+# 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_fed_levels.csv',
+#                       output_distributions = 'data/daily_distribution_data/daily_distributions_fed_levels.csv',
+#                       output_moments = 'data/daily_moments_data/daily_moments_fed_levels.csv',
+#                       strike_int = 0.25,
+#                       days_before_horizon = 180)
+# 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_headline_cpi_releases.csv',
+#                       output_distributions = 'data/daily_distribution_data/daily_distributions_headline_cpi_releases.csv',
+#                       output_moments = 'data/daily_moments_data/daily_moments_headline_cpi_releases.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 30)
+# 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_unemployment.csv',
+#                       output_distributions = 'data/daily_distribution_data/daily_distributions_unemployment_releases.csv',
+#                       output_moments = 'data/daily_moments_data/daily_moments_unemployment_releases.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 30)
+# 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_core_cpi_releases.csv',
+#                       output_distributions = 'data/daily_distribution_data/daily_distributions_core_cpi_releases.csv',
+#                       output_moments = 'data/daily_moments_data/daily_moments_core_cpi_releases.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 30)
+
+
 
 extract_distributions(input_file = 'data/trade_level_data/trade_level_data_fed_levels.csv',
-                      output_distributions = 'data/daily_distribution_data/daily_distributions_fed_levels.csv',
+                      output_distributions = 'data/daily_distribution_data_left_to_right/daily_distributions_fed_levels.csv',
                       output_moments = 'data/daily_moments_data/daily_moments_fed_levels.csv',
                       strike_int = 0.25,
                       days_before_horizon = 180)
 
 extract_distributions(input_file = 'data/trade_level_data/trade_level_data_headline_cpi_releases.csv',
-                      output_distributions = 'data/daily_distribution_data/daily_distributions_headline_cpi_releases.csv',
+                      output_distributions = 'data/daily_distribution_data_left_to_right/daily_distributions_headline_cpi_releases.csv',
                       output_moments = 'data/daily_moments_data/daily_moments_headline_cpi_releases.csv',
                       strike_int = 0.1,
                       days_before_horizon = 30)
 
 extract_distributions(input_file = 'data/trade_level_data/trade_level_data_unemployment.csv',
-                      output_distributions = 'data/daily_distribution_data/daily_distributions_unemployment_releases.csv',
+                      output_distributions = 'data/daily_distribution_data_left_to_right/daily_distributions_unemployment_releases.csv',
                       output_moments = 'data/daily_moments_data/daily_moments_unemployment_releases.csv',
                       strike_int = 0.1,
                       days_before_horizon = 30)
 
 extract_distributions(input_file = 'data/trade_level_data/trade_level_data_core_cpi_releases.csv',
-                      output_distributions = 'data/daily_distribution_data/daily_distributions_core_cpi_releases.csv',
+                      output_distributions = 'data/daily_distribution_data_left_to_right/daily_distributions_core_cpi_releases.csv',
                       output_moments = 'data/daily_moments_data/daily_moments_core_cpi_releases.csv',
                       strike_int = 0.1,
                       days_before_horizon = 30)
-

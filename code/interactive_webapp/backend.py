@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # Constants
-DATA_DIR = '../../data/daily_distribution_data/'
+DATA_DIR = '../../data/daily_distribution_data_left_to_right/'
 FILES = {
     'fed_levels': 'daily_distributions_fed_levels.csv',
     'headline_cpi_releases': 'daily_distributions_headline_cpi_releases.csv',
