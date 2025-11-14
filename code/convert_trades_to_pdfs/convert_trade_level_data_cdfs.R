@@ -107,7 +107,8 @@ convert_to_daily <- function(df) {
 #'
 #' @param df A data frame with columns: date, contract_preamble, strike, yes_price, daily_volume.
 #' @return A data frame with missing dates filled and cleaned.
-fill_dataless_days <- function(df) {
+fill_dataless_days <- function(df, days_before_horizon) {
+  
   
   # Get unique strike-preamble combinations that actually exist
   valid_combos <- df %>% select(contract_preamble, strike) %>% distinct()
@@ -130,6 +131,10 @@ fill_dataless_days <- function(df) {
       expiry_date = if (all(is.na(yes_price))) NA_Date_ else max(date[!is.na(yes_price)])
     ) %>%
     ungroup()
+  
+  # Get rid of stale prices that might get stuck because they took place before 
+  # the forecast period we care about (Ex: July 2023 CPI)
+  df <- df %>% filter(date  >= expiry_date - days(days_before_horizon) - 10)
   
   # fill NA rows with last price and fill in 0 for daily volume on these days
   df <- df %>%
@@ -269,8 +274,7 @@ convert_to_probabilities <- function(df, strike_int, days_before_horizon, type =
       k = round((strike - min(strike, na.rm = TRUE)) / strike_int)
     ) %>% 
     
-    distinct(k, .keep_all = TRUE) %>%  # remove any true duplicates first
-    
+    distinct(k, .keep_all = TRUE) %>%  # remove any duplicates 
     complete(
       k = full_seq(k, 1),              # fill only gaps in the index
       fill = list(
@@ -287,6 +291,8 @@ convert_to_probabilities <- function(df, strike_int, days_before_horizon, type =
     ) %>% 
     select(-k) %>% 
     ungroup()
+
+  
   
   # Because of low trade volumes, sometimes Kalshi has two contracts that have
   # the exact same yes_price, despite one being for a lower strike than the
@@ -313,6 +319,8 @@ convert_to_probabilities <- function(df, strike_int, days_before_horizon, type =
         adjusted_yes_price = na_if(adjusted_yes_price, 0)
       ) %>%
       fill(adjusted_yes_price, .direction = "up") 
+    
+    
     
     j = 0
     while(any(df_group$swapped) | j == 0) {
@@ -383,17 +391,15 @@ convert_to_probabilities <- function(df, strike_int, days_before_horizon, type =
   }
 
   
-  # Remove the days where no trades cause 100 percent probabilities
-  # df <- df %>% group_by(contract_preamble, date) %>%
-  #   filter(!any(probability == 98)) %>%
-  #   ungroup()
 
   # Make sure our probabilities add up to 100
   df <- df %>% group_by(contract_preamble, date) %>% arrange(strike) %>%
     mutate(sum = sum(probability),
            probability = probability * 100 / sum) %>% select(-sum)
   
+  # And remove dates that we're not interested in
   df <- df %>% filter(date  >= expiry_date - days(days_before_horizon))
+  
   
   return(df)
   
@@ -450,8 +456,9 @@ extract_distributions <- function(input_file, output_distributions, output_momen
   
   df <- read_data(input_file = input_file)
   df <- convert_to_daily(df)
-  df <- fill_dataless_days(df)
+  df <- fill_dataless_days(df, days_before_horizon)
   df <- clean_data(df)
+  
   df <- convert_to_probabilities(df, strike_int = strike_int, days_before_horizon)
   moments_df <- get_moments(df)
 
