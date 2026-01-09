@@ -87,16 +87,29 @@ read_data <- function(input_file) {
 #'
 #' @param df A data frame containing trade-level options data with columns: date, contract_preamble, strike, yes_price, count (volume)
 #' @return A data frame with daily last prices and total volume per contract and strike.
-convert_to_daily <- function(df) {
-  df %>%
-    group_by(date, contract_preamble, strike) %>%
-    arrange(created_time, .by_group = TRUE) %>%
-    summarise(
-      yes_price    = dplyr::last(yes_price),
-      daily_volume = sum(count),
-      .groups = "drop"
-    ) %>%
-    arrange(contract_preamble, strike, date)
+convert_to_daily <- function(df, method = 'last') {
+  
+  if (method == 'last') {
+    df %>%
+      group_by(date, contract_preamble, strike) %>%
+      arrange(created_time, .by_group = TRUE) %>%
+      summarise(
+        yes_price    = dplyr::last(yes_price),
+        daily_volume = sum(count),
+        .groups = "drop"
+      ) %>%
+      arrange(contract_preamble, strike, date)
+  } else if (method == 'average') {
+    df %>%
+      group_by(date, contract_preamble, strike) %>%
+      arrange(created_time, .by_group = TRUE) %>%
+      summarise(
+        yes_price    = weighted.mean(yes_price, count),
+        daily_volume = sum(count),
+        .groups = "drop"
+      ) %>%
+      arrange(contract_preamble, strike, date)
+  }
 }
 
 #' Fill missing days in daily data with last known price (from a previous day)
@@ -455,7 +468,7 @@ extract_distributions <- function(input_file, output_distributions, output_momen
                                   days_before_horizon) {
   
   df <- read_data(input_file = input_file)
-  df <- convert_to_daily(df)
+  df <- convert_to_daily(df, method = 'last')
   df <- fill_dataless_days(df, days_before_horizon)
   df <- clean_data(df)
   
@@ -492,27 +505,33 @@ extract_distributions <- function(input_file, output_distributions, output_momen
 #                       days_before_horizon = 30)
 
 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_fed_levels.csv',
+#                       output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_fed_levels.csv',
+#                       output_moments = 'data/daily_moments_data_middle_out/daily_moments_fed_levels.csv',
+#                       strike_int = 0.25,
+#                       days_before_horizon = 180)
+# 
+# 
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_headline_cpi_releases.csv',
+#                       output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_headline_cpi_releases.csv',
+#                       output_moments = 'data/daily_moments_data_middle_out/daily_moments_headline_cpi_releases.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 30)
 
-extract_distributions(input_file = 'data/trade_level_data/trade_level_data_fed_levels.csv',
-                      output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_fed_levels.csv',
-                      output_moments = 'data/daily_moments_data_middle_out/daily_moments_fed_levels.csv',
-                      strike_int = 0.25,
-                      days_before_horizon = 180)
-
-extract_distributions(input_file = 'data/trade_level_data/trade_level_data_headline_cpi_releases.csv',
-                      output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_headline_cpi_releases.csv',
-                      output_moments = 'data/daily_moments_data_middle_out/daily_moments_headline_cpi_releases.csv',
-                      strike_int = 0.1,
-                      days_before_horizon = 30)
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_headline_cpi_releases.csv',
+#                       output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_headline_cpi_releases_regressions.csv',
+#                       output_moments = 'data/daily_moments_data_middle_out/daily_moments_headline_cpi_releases_regressions.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 90)
 
 extract_distributions(input_file = 'data/trade_level_data/trade_level_data_unemployment.csv',
                       output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_unemployment_releases.csv',
                       output_moments = 'data/daily_moments_data_middle_out/daily_moments_unemployment_releases.csv',
                       strike_int = 0.1,
-                      days_before_horizon = 30)
+                      days_before_horizon = 60)
 
-extract_distributions(input_file = 'data/trade_level_data/trade_level_data_core_cpi_releases.csv',
-                      output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_core_cpi_releases.csv',
-                      output_moments = 'data/daily_moments_data_middle_out/daily_moments_core_cpi_releases.csv',
-                      strike_int = 0.1,
-                      days_before_horizon = 30)
+# extract_distributions(input_file = 'data/trade_level_data/trade_level_data_core_cpi_releases.csv',
+#                       output_distributions = 'data/daily_distribution_data_middle_out/daily_distributions_core_cpi_releases.csv',
+#                       output_moments = 'data/daily_moments_data_middle_out/daily_moments_core_cpi_releases.csv',
+#                       strike_int = 0.1,
+#                       days_before_horizon = 30)

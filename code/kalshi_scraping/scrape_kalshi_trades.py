@@ -89,6 +89,7 @@ from clients_kalshi import KalshiHttpClient, KalshiWebSocketClient, Environment
 # load_dotenv('env.env')
 
 env = Environment.PROD # toggle environment here
+load_dotenv("env.env")  # or just load_dotenv() if named .env
 
 KEYID = os.getenv("KALSHI_KEYID")
 PRIVATE_KEY = os.getenv("KALSHI_PRIVATE_KEY")
@@ -219,15 +220,16 @@ core_cpi_tickers = tickers.autogenerate_kalshi_tickers('KXCPICOREYOY')
 gdp_end_of_year_tickers = tickers.autogenerate_kalshi_tickers('KXGDPYEAR')
 payrolls_tickers = tickers.autogenerate_kalshi_tickers('KXPAYROLLS')
 unemployment_tickers = tickers.autogenerate_kalshi_tickers('KXU3')
+cpi_tickers_mom = tickers.autogenerate_kalshi_tickers('KXCPI')
 
 # levels_tickers = tickers.get_tickers('fed_levels')
-scrape_kalshi('data/trade_level_data/trade_level_data_fed_levels.csv', levels_tickers)
+# scrape_kalshi('data/trade_level_data/trade_level_data_fed_levels.csv', levels_tickers)
 
 # decisions_tickers = tickers.get_tickers('fed_decisions')
 # scrape_kalshi('data/trade_level_data/trade_level_data_fed_decisions.csv', decisions_tickers)
 
 # cpi_tickers = tickers.get_tickers('headline_cpi_releases')
-scrape_kalshi('data/trade_level_data/trade_level_data_headline_cpi_releases.csv', cpi_tickers)
+# scrape_kalshi('data/trade_level_data/trade_level_data_headline_cpi_releases.csv', cpi_tickers)
 
 # cpi_end_of_year_tickers = tickers.get_tickers('headline_cpi_end_of_year')
 # scrape_kalshi('data/trade_level_data/trade_level_data_headline_cpi_end_of_year.csv', cpi_end_of_year_tickers)
@@ -243,9 +245,10 @@ scrape_kalshi('data/trade_level_data/trade_level_data_headline_cpi_releases.csv'
 # scrape_kalshi('data/trade_level_data/trade_level_data_payrolls.csv', payrolls_tickers)
 
 # unemployment_tickers = tickers.get_tickers('unemployment_releases') # currently only have since Jan 2024, need to backfill
-scrape_kalshi('data/trade_level_data/trade_level_data_unemployment.csv', unemployment_tickers)
+# scrape_kalshi('data/trade_level_data/trade_level_data_unemployment.csv', unemployment_tickers)
 
 # recession_annual_tickers = tickers.get_tickers('recession_annual')
 # scrape_kalshi('data/trade_level_data/trade_level_data_recession_annual.csv', recession_annual_tickers)
 
 
+scrape_kalshi('data/trade_level_data/trade_level_data_headline_cpi_releases_mom.csv', cpi_tickers_mom)
