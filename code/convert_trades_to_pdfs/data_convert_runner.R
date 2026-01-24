@@ -1,8 +1,6 @@
 # This file is a driver to convert all of our trade level and orderbook data to 
 # moments and probability distribution data
 
-setwd("/Users/jaredkatz/Documents/Research/PredictionMarketsReplication") # or your project directory
-
 
 ############ Trade-level Data ############
 source("code/convert_trades_to_pdfs/convert_trade_level_data_cdfs.R")
