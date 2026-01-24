@@ -41,20 +41,14 @@ jobs:
 
       - name: Install R dependencies
         run: |
-          Rscript -e 'install.packages(c(
-            "tidyverse",
-            "lubridate",
-            "av",
-            "matrixStats",
-            "gganimate"
-          ), repos="https://cloud.r-project.org")'
+          install.packages(c("tidyverse", "lubridate", "matrixStats"), 
+                          repos = c("https://packagemanager.posit.co/cran/__linux__/jammy/latest", 
+                                   "https://cloud.r-project.org"))
+        shell: Rscript {0}
 
 
-      - name: Run R script (CDFs)
-        run: Rscript code/convert_trades_to_pdfs/convert_trade_level_data_cdfs.R
-
-      - name: Run R script (PDFs)
-        run: Rscript code/convert_trades_to_pdfs/convert_trade_level_data_pdfs.R
+      - name: Run R script to convert to PDFs and Moments Data
+        run: Rscript code/convert_trades_to_pdfs/data_convert_runner.R
 
 
       # -----------------------
