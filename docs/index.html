@@ -513,9 +513,15 @@
 
         async function showDistribution(variable, contract, date) {
             document.getElementById('distributionSection').style.display = 'block';
-            document.getElementById('distributionLoading').style.display = 'block';
-            document.getElementById('distributionChart').style.display = 'none';
             document.getElementById('distributionHint').style.display = 'none';
+
+            const chartDiv = document.getElementById('distributionChart');
+            const isFirstLoad = !chartDiv.data;
+
+            if (isFirstLoad) {
+                document.getElementById('distributionLoading').style.display = 'block';
+                chartDiv.style.display = 'none';
+            }
 
             const distributionData = await loadDistributionData(variable, contract, date);
 
@@ -530,18 +536,10 @@
             const strikes = distributionData.map(row => parseFloat(row.strike));
             const probabilities = distributionData.map(row => parseFloat(row.probability));
 
-            // Create bin labels - strike represents lower bound of range
             const binLabels = strikes.map((strike, i) => {
-                if (i === 0) {
-                    // First bin: < first strike value
-                    return `< ${strike.toFixed(2)}`;
-                } else if (i === strikes.length - 1) {
-                    // Last bin: >= this strike to infinity
-                    return `≥ ${strike.toFixed(2)}`;
-                } else {
-                    // Middle bins: from current strike to next strike
-                    return `${strike.toFixed(2)} - ${strikes[i + 1].toFixed(2)}`;
-                }
+                if (i === 0) return `< ${strike.toFixed(2)}`;
+                if (i === strikes.length - 1) return `≥ ${strike.toFixed(2)}`;
+                return `${strike.toFixed(2)} - ${strikes[i + 1].toFixed(2)}`;
             });
 
             const trace = {
@@ -550,10 +548,7 @@
                 type: 'bar',
                 text: probabilities.map(p => `${p.toFixed(1)}%`),
                 textposition: 'outside',
-                marker: {
-                    color: '#3498db',
-                    line: { color: '#2980b9', width: 1 }
-                },
+                marker: { color: '#3498db', line: { color: '#2980b9', width: 1 } },
                 hovertemplate: '%{x}<br>Probability: %{y:.2f}%<extra></extra>'
             };
 
@@ -562,17 +557,12 @@
                     text: `Distribution for ${getVariableTitle(variable)} - ${parseContractToQuestion(contract)} on ${date}`,
                     font: { size: 16, color: '#2c3e50' }
                 },
-                xaxis: {
-                    title: 'Outcome Range',
-                    gridcolor: '#f0f0f0'
-                },
-                yaxis: {
-                    title: 'Probability (%)',
-                    gridcolor: '#f0f0f0'
-                },
+                xaxis: { title: 'Outcome Range', gridcolor: '#f0f0f0' },
+                yaxis: { title: 'Probability (%)', gridcolor: '#f0f0f0' },
                 plot_bgcolor: '#fafafa',
                 paper_bgcolor: 'white',
-                margin: { t: 60, r: 40, b: 60, l: 80 }
+                margin: { t: 60, r: 40, b: 60, l: 80 },
+                width: chartDiv.parentElement.offsetWidth,
             };
 
             const config = {
@@ -582,9 +572,14 @@
                 displaylogo: false
             };
 
-            Plotly.newPlot('distributionChart', [trace], layout, config);
-            document.getElementById('distributionChart').style.display = 'block';
-            document.getElementById('distributionLoading').style.display = 'none';
+            if (isFirstLoad) {
+                Plotly.purge(chartDiv);
+                Plotly.newPlot('distributionChart', [trace], layout, config);
+                chartDiv.style.display = 'block';
+                document.getElementById('distributionLoading').style.display = 'none';
+            } else {
+                Plotly.react('distributionChart', [trace], layout, config);
+            }
         }
 
         // ============================================
@@ -600,12 +595,34 @@
 
             if (!selectedContract) return;
 
-            const contractData = currentData.data.filter(row =>
+            let contractData = currentData.data.filter(row =>
                 row.contract_preamble === selectedContract
             );
 
+            contractData = contractData.slice(0, -1);
+
+            // For fed_levels, restrict recent contracts to improve data quality:
+            // - most recent contract (index 0): last 3 months
+            // - second most recent contract (index 1): last 4 months
+            const fedLevelsCutoffs = { 0: 1.5, 1: 4 };
+            if (variable === 'fed_levels') {
+                const contractIndex = availableContracts.indexOf(selectedContract);
+                const monthsCutoff = fedLevelsCutoffs[contractIndex] ?? 5;
+                if (monthsCutoff) {
+                    const allDates = contractData.map(row => row.date).sort();
+                    if (allDates.length > 0) {
+                        const latestDate = new Date(allDates[allDates.length - 1]);
+                        const cutoff = new Date(latestDate);
+                        cutoff.setMonth(cutoff.getMonth() - monthsCutoff);
+                        const cutoffStr = cutoff.toISOString().split('T')[0];
+                        contractData = contractData.filter(row => row.date >= cutoffStr);
+                    }
+                }
+            }
+
             const dates = contractData.map(row => row.date);
             const values = contractData.map(row => parseFloat(row[moment]));
+
 
             const trace1 = {
                 x: dates,
@@ -707,6 +724,7 @@
             };
 
             Plotly.newPlot('chart', traces, layout, config);
+
 
             // Add click handler for distribution viewer
             const chartDiv = document.getElementById('chart');
