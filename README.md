@@ -1,4 +1,4 @@
-# Replication Package: Diercks, Katz, Wright (2026)
+# Replication Package for Kalshi and the Rise of Macro Markets (2026)
 
 ## Overview
 
