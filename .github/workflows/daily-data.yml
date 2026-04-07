@@ -25,6 +25,14 @@ jobs:
         run: |
           pip install pandas python-dotenv cryptography requests websockets
 
+      - name: Create data directories
+        run: |
+          mkdir -p data/trade_level_data
+          mkdir -p data/daily_bid_ask_distribution_data
+          mkdir -p data/daily_bid_ask_moments_data
+          mkdir -p data/daily_distribution_data
+          mkdir -p data/daily_moments_data
+
       - name: Run Python scraping script
         env:
           KALSHI_KEYID: ${{ secrets.KALSHI_KEYID }}
