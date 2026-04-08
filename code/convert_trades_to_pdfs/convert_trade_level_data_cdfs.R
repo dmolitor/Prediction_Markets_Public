@@ -66,6 +66,12 @@ read_data <- function(input_file) {
     mutate(created_time = as.POSIXct(created_time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
            date = as.Date(created_time))
   
+  # As of March 2026 Kalshi now uses yes_price_dollars and no_price_dollars 
+  # instead of yes_price and no_price. Convert
+  df <- df %>%
+    mutate(yes_price = yes_price_dollars * 100,
+           no_price = no_price_dollars * 100)
+  
   # Extract contract_preamble (e.g., FED-22DEC) and strike price
   df <- df %>%
     mutate(
@@ -94,7 +100,7 @@ convert_to_daily <- function(df, method = 'last') {
       arrange(created_time, .by_group = TRUE) %>%
       summarise(
         yes_price    = dplyr::last(yes_price),
-        daily_volume = sum(count),
+        daily_volume = sum(count_fp),
         .groups = "drop"
       ) %>%
       arrange(contract_preamble, strike, date)
@@ -104,7 +110,7 @@ convert_to_daily <- function(df, method = 'last') {
       arrange(created_time, .by_group = TRUE) %>%
       summarise(
         yes_price    = weighted.mean(yes_price, count),
-        daily_volume = sum(count),
+        daily_volume = sum(count_fp),
         .groups = "drop"
       ) %>%
       arrange(contract_preamble, strike, date)

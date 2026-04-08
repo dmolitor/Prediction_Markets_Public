@@ -95,7 +95,11 @@ if os.path.exists("env.env"):
 KEYID = os.getenv("KALSHI_KEYID")
 PRIVATE_KEY_STR = os.getenv("KALSHI_PRIVATE_KEY")
 
-# Decode the PEM string directly — no file needed
+# If running local on device
+# with open(PRIVATE_KEY_STR, "rb") as f:
+#     private_key = serialization.load_pem_private_key(f.read(), password=None)
+
+# If running on github actions
 private_key = serialization.load_pem_private_key(PRIVATE_KEY_STR.encode(), password=None)
 
 # Initialize the HTTP client
@@ -183,7 +187,7 @@ def scrape_kalshi(output_filename, tickers):
         time.sleep(1) # pause for a second after each market to avoid rate limits
         
     # rename column to work with updated Kalshi API endpoints    
-    results = results.rename(columns={'yes_price_dollars': 'yes_price', 'no_price_dollars': 'no_price'})
+    # results['yes_price'] = results['yes_price_dollars'] * 100
 
     # Save the csv to output_filename
     results.to_csv(output_filename)
