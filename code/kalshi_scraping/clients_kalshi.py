@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 from datetime import datetime, timedelta
 from enum import Enum
 import json
+import pandas as pd
 
 from requests.exceptions import HTTPError
 
@@ -177,6 +178,56 @@ class KalshiHttpClient(KalshiBaseClient):
         # Remove None values
         params = {k: v for k, v in params.items() if v is not None}
         return self.get(self.markets_url + '/trades', params=params)
+    
+    # Additional endpoints added in April 2026 to allow for Kalshi historical/live data split
+
+            
+    def get_historical_cutoff(self) -> str:
+        """Fetch the cutoff datetime separating historical and markets trade endpoints."""
+        response = self.get("/trade-api/v2/historical/cutoff")
+        return response['cutoff']  # adjust key name based on actual response
+
+
+    def get_all_trades_for_ticker(self, ticker: str) -> pd.DataFrame:
+        """Fetch complete trade history for a ticker from both endpoints."""
+        
+        def paginate(url, ticker, **kwargs) -> pd.DataFrame:
+            """Helper to paginate through all pages of a given endpoint."""
+            results = []
+            trades = self.get(url, params={'ticker': ticker, **kwargs})
+            results.extend(trades['trades'])
+            cursor = trades.get('cursor')
+            
+            while cursor:
+                trades = self.get(url, params={'ticker': ticker, 'cursor': cursor})
+                results.extend(trades['trades'])
+                cursor = trades.get('cursor')
+            
+            return pd.DataFrame(results)
+
+        historical_url = "/trade-api/v2/historical/trades"
+        markets_url = "/trade-api/v2/markets/trades"
+
+        print(f"  Fetching historical trades for {ticker}...")
+        historical_df = paginate(historical_url, ticker)
+        print(f"  Historical rows: {len(historical_df)}")
+
+        print(f"  Fetching recent trades for {ticker}...")
+        markets_df = paginate(markets_url, ticker)
+        print(f"  Recent rows: {len(markets_df)}")
+
+        combined = pd.concat([historical_df, markets_df], ignore_index=True)
+
+        if combined.empty:
+            print(f"  No trades found for {ticker}, skipping...")
+            return combined
+
+        combined = combined.drop_duplicates(subset='trade_id')
+        combined = combined.sort_values('created_time').reset_index(drop=True)
+
+        return combined
+
+
 
 class KalshiWebSocketClient(KalshiBaseClient):
     """Client for handling WebSocket connections to the Kalshi API."""
@@ -238,3 +289,8 @@ class KalshiWebSocketClient(KalshiBaseClient):
     async def on_close(self, close_status_code, close_msg):
         """Callback when WebSocket connection is closed."""
         print("WebSocket connection closed with code:", close_status_code, "and message:", close_msg)
+
+
+
+
+    

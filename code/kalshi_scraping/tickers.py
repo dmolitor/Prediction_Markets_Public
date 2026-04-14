@@ -12,39 +12,53 @@ Input: series_ticker (str): The series ticker.
 import requests
 import time
 
-def autogenerate_kalshi_tickers(series_ticker):
 
-    base_url = "https://api.elections.kalshi.com/trade-api/v2/markets"
-    tickers = []
+BASE_URL = "https://api.elections.kalshi.com/trade-api/v2"
+
+
+def _paginate(url, params, result_key="markets"):
+    results = []
     cursor = None
 
     while True:
-        params = {
-            "series_ticker": series_ticker,
-            "limit": 100
-        }
+        req_params = params.copy()
         if cursor:
-            params["cursor"] = cursor
+            req_params["cursor"] = cursor
 
-        resp = requests.get(base_url, params=params)
-
-        # Add a delay to avoid rate limiting
-        time.sleep(1)  # Wait 1 second between requests
-
+        resp = requests.get(url, params=req_params)
+        time.sleep(0.2)
         resp.raise_for_status()
         data = resp.json()
 
-        tickers.extend([m["ticker"] for m in data.get("markets", [])])
+        results.extend(data.get(result_key, []))
         cursor = data.get("cursor")
 
         if not cursor:
             break
 
-    return tickers
+    return results
 
+def autogenerate_kalshi_tickers(series_ticker):
+    tickers = set()
 
+    # 1. Get all events for this series (covers historical + live)
+    events_url = f"{BASE_URL}/events"
+    events = _paginate(events_url, {"series_ticker": series_ticker, "limit": 200}, result_key="events")
+    event_tickers = [e["event_ticker"] for e in events]
+    print(f"Found {len(event_tickers)} events for series {series_ticker}")
 
+    # 2. For each event, get historical markets
+    hist_url = f"{BASE_URL}/historical/markets"
+    for event_ticker in event_tickers:
+        hist_markets = _paginate(hist_url, {"event_ticker": event_ticker, "limit": 100})
+        tickers.update(m["ticker"] for m in hist_markets)
 
+    # 3. Get live markets (series_ticker filter works here)
+    live_url = f"{BASE_URL}/markets"
+    live_markets = _paginate(live_url, {"series_ticker": series_ticker, "limit": 100})
+    tickers.update(m["ticker"] for m in live_markets)
+
+    return list(tickers)
 
 """
 This file gives some sample sets of tickers that you might want to download.

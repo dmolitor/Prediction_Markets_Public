@@ -89,8 +89,8 @@ env = Environment.PROD
 
 # In GitHub Actions, don't load from .env file
 # Only load .env if it exists (for local development)
-if os.path.exists("env.env"):
-    load_dotenv("env.env")
+# if os.path.exists("env.env"):
+#     load_dotenv("env.env")
 
 KEYID = os.getenv("KALSHI_KEYID")
 PRIVATE_KEY_STR = os.getenv("KALSHI_PRIVATE_KEY")
@@ -141,6 +141,9 @@ import tickers # download tickers given a tag of interest
 ##################################
 
 """
+OUTDATED-- used to scrape all trades, but following April 2026 split between historical/live data
+it now only returns live trades. Please use scrape_kalshi() instead if interested in getting
+historical data.
 # loop through each ticker and get all the trades, append to the bottom of a pandas df
 # Kalshi uses pagination in their API, so we loop through pages while the pages
 # remain full to get each trade on the market. At each page, we get the 
@@ -151,47 +154,59 @@ Inputs:
         - tickers: the list of tickers you want the trade data for
 """
 
-def scrape_kalshi(output_filename, tickers):
+# def scrape_kalshi_live(output_filename, tickers):
 
-    results = pd.DataFrame(columns=['trade_id', 'ticker', 'count', 
-                                    'created_time', 'yes_price_dollars', 'no_price_dollars', 
-                                    'taker_side'])
+#     results = pd.DataFrame(columns=['trade_id', 'ticker', 'count', 
+#                                     'created_time', 'yes_price_dollars', 'no_price_dollars', 
+#                                     'taker_side'])
+#     for ticker in tickers:
+        
+#         print(f"Fetching: {ticker}")
+        
+#         # get the trades on the first page, append to df and hold the cursor
+#         trades = client.get_trades(ticker=ticker)
+#         page_df = pd.DataFrame(trades['trades'])
+#         print(f"First page rows: {len(page_df)}")
+        
+#         results = pd.concat([results, page_df], ignore_index=True)
+#         cursor = trades.get('cursor')
+    
+#         page = 1
+        
+#         # for each page, get the trades and append to our df, get the new cursor
+#         # when we hit the end, cursor will turn null and we'll exit the loop
+#         while cursor:
+            
+#             print(f"  Page {page} cursor: {cursor}")
+#             trades = client.get_trades(ticker=ticker, cursor=cursor)
+#             page_df = pd.DataFrame(trades['trades'])
+            
+#             print(f"  Page {page} rows: {len(page_df)}")
+#             results = pd.concat([results, page_df], ignore_index=True)
+            
+#             cursor = trades.get('cursor')
+#             page += 1
+    
+#         time.sleep(1) # pause for a second after each market to avoid rate limits
+        
+#     # Save the csv to output_filename
+#     results.to_csv(output_filename)
+
+
+def scrape_kalshi(output_filename: str, tickers: list):
+    """Scrape full trade history for a list of tickers and save to CSV."""
+    all_results = []
+
     for ticker in tickers:
-        
         print(f"Fetching: {ticker}")
-        
-        # get the trades on the first page, append to df and hold the cursor
-        trades = client.get_trades(ticker=ticker)
-        page_df = pd.DataFrame(trades['trades'])
-        print(f"First page rows: {len(page_df)}")
-        
-        results = pd.concat([results, page_df], ignore_index=True)
-        cursor = trades.get('cursor')
-    
-        page = 1
-        
-        # for each page, get the trades and append to our df, get the new cursor
-        # when we hit the end, cursor will turn null and we'll exit the loop
-        while cursor:
-            
-            print(f"  Page {page} cursor: {cursor}")
-            trades = client.get_trades(ticker=ticker, cursor=cursor)
-            page_df = pd.DataFrame(trades['trades'])
-            
-            print(f"  Page {page} rows: {len(page_df)}")
-            results = pd.concat([results, page_df], ignore_index=True)
-            
-            cursor = trades.get('cursor')
-            page += 1
-    
-        time.sleep(1) # pause for a second after each market to avoid rate limits
-        
-    # rename column to work with updated Kalshi API endpoints    
-    # results['yes_price'] = results['yes_price_dollars'] * 100
+        ticker_df = client.get_all_trades_for_ticker(ticker)
+        print(f"  Total rows: {len(ticker_df)}")
+        all_results.append(ticker_df)
+        time.sleep(1)
 
-    # Save the csv to output_filename
-    results.to_csv(output_filename)
-
+    results = pd.concat(all_results, ignore_index=True)
+    results.to_csv(output_filename, index=False)
+    print(f"Saved {len(results)} total trades to {output_filename}")
 
 ##################################
 ##       Getting the data       ##
