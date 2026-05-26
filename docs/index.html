@@ -182,8 +182,9 @@
                 and is updated daily through an automated pipeline. Researchers can use this data to study how market
                 expectations evolve over time and how they respond to economic news and policy announcements.</p>
             <p><strong>Data Format:</strong> All files are provided as CSV (comma-separated values) files with headers.
-                The distribution files use long-form format where each row represents a probability mass at a specific
-                outcome. The moments files contain summary statistics with one row per date.</p>
+                The distribution files use wide format where each row represents a date and contract, with one column
+                per strike value containing the probability mass at that outcome. The moments files contain summary
+                statistics with one row per date.</p>
             <p><strong>Update Frequency:</strong> This dataset is updated weekly on Fridays,
                 approximately noon EST.</p>
         </div>
@@ -296,31 +297,32 @@
         <div class="section">
             <h2>Available Datasets</h2>
             <div class="dataset">
-                <div class="dataset-title">Probability Distributions</div>
-                <div class="dataset-description">Complete daily probability distributions for each macroeconomic
-                    variable in long-form data format. Each row represents a probability mass at a specific outcome
-                    value for a given date.</div>
+                <div class="dataset-title">Probability Distributions (Wide Format)</div>
+                <div class="dataset-description">Daily probability distributions for each macroeconomic variable in
+                    wide format. Each row represents a date and contract, with one column per strike value containing
+                    the probability at that outcome, plus a <code>total_volume</code> column. Only includes contracts
+                    within 2 months of the horizon and excludes the most recent day.</div>
                 <div class="file-list">
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_fed_levels.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_fed_levels.csv"
                             download>FOMC Decisions</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_headline_cpi_releases_mom.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_headline_cpi_releases_mom.csv"
                             download>Headline CPI Releases (MoM)</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_headline_cpi_releases.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_headline_cpi_releases.csv"
                             download>Headline CPI Releases (YoY)</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_core_cpi_releases.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_core_cpi_releases.csv"
                             download>Core CPI Releases</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_unemployment_releases.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_unemployment_releases.csv"
                             download>Unemployment Releases</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_gdp_end_of_year.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_gdp_end_of_year.csv"
                             download>End-of-year GDP</a></div>
                     <div class="file-item"><span class="download-icon">⬇</span><a
-                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/daily_distributions_headline_cpi_end_of_year.csv"
+                            href="https://kalshi-and-the-rise-of-macro-markets.s3.amazonaws.com/daily_distribution_data/wide/daily_distributions_headline_cpi_end_of_year.csv"
                             download>End-of-year CPI</a></div>
                 </div>
             </div>
@@ -477,20 +479,17 @@
 
             // Get current date
             const now = new Date();
-            const currentYear = now.getFullYear() % 100; // Get last 2 digits (e.g., 26 for 2026)
-            const currentMonth = now.getMonth() + 1; // 1-12
-            const currentValue = currentYear * 100 + currentMonth; // e.g., 2601 for Jan 2026
+            const currentYear = now.getFullYear() % 100;
+            const currentMonth = now.getMonth() + 1;
+            const currentValue = currentYear * 100 + currentMonth;
 
-            // Filter contracts: keep all past ones, but only near-future ones
             const filtered = contracts.filter(contract => {
                 const contractValue = getContractSortValue(contract);
                 const monthsDiff = contractValue - currentValue;
-
-                // Keep all past contracts (monthsDiff <= 0) and future contracts within 6 months
                 return monthsDiff <= 2;
             });
 
-            return filtered.length > 0 ? filtered : contracts; // Fallback to all if filter is too aggressive
+            return filtered.length > 0 ? filtered : contracts;
         }
 
         // ============================================
@@ -602,9 +601,6 @@
 
             contractData = contractData.slice(0, -1);
 
-            // For fed_levels, restrict recent contracts to improve data quality:
-            // - most recent contract (index 0): last 3 months
-            // - second most recent contract (index 1): last 4 months
             const fedLevelsCutoffs = { 0: 1.5, 1: 4 };
             if (variable === 'fed_levels') {
                 const contractIndex = availableContracts.indexOf(selectedContract);
@@ -624,7 +620,6 @@
             const dates = contractData.map(row => row.date);
             const values = contractData.map(row => parseFloat(row[moment]));
 
-
             const trace1 = {
                 x: dates,
                 y: values,
@@ -639,7 +634,6 @@
 
             const traces = [trace1];
 
-            // Add comparison trace if enabled
             if (showComparison && currentData2) {
                 const moment2 = document.getElementById('momentSelect2').value;
                 const variable2 = document.getElementById('variableSelect2').value;
@@ -726,8 +720,6 @@
 
             Plotly.newPlot('chart', traces, layout, config);
 
-
-            // Add click handler for distribution viewer
             const chartDiv = document.getElementById('chart');
             chartDiv.on('plotly_click', function (data) {
                 const point = data.points[0];
@@ -748,13 +740,11 @@
             document.getElementById('chart').style.display = 'block';
             document.getElementById('loadingMessage').style.display = 'none';
 
-            // Show distribution for most recent date by default
             if (dates.length > 0) {
                 const mostRecentDate = dates[dates.length - 1];
                 showDistribution(variable, selectedContract, mostRecentDate);
             }
 
-            // Set up date slider
             currentDates = dates;
             if (dates.length > 0) {
                 const sliderSection = document.getElementById('dateSliderSection');
@@ -764,19 +754,16 @@
                 sliderSection.style.display = 'block';
                 slider.min = 0;
                 slider.max = dates.length - 1;
-                slider.value = dates.length - 1; // Start at most recent
+                slider.value = dates.length - 1;
 
-                // Update label
                 dateLabel.textContent = dates[dates.length - 1];
 
-                // Add slider event listener
                 slider.oninput = function () {
                     const selectedDate = dates[this.value];
                     dateLabel.textContent = selectedDate;
                     showDistribution(variable, selectedContract, selectedDate);
                 };
 
-                // Show distribution for most recent date by default
                 const mostRecentDate = dates[dates.length - 1];
                 showDistribution(variable, selectedContract, mostRecentDate);
             }
@@ -790,8 +777,6 @@
 
             let contracts = [...new Set(currentData.data.map(row => row.contract_preamble))];
             contracts.sort((a, b) => getContractSortValue(b) - getContractSortValue(a));
-
-            // Filter to only recent contracts
             contracts = filterRecentContracts(contracts, document.getElementById('variableSelect').value);
 
             availableContracts = contracts;
@@ -811,8 +796,6 @@
 
             let contracts = [...new Set(currentData2.data.map(row => row.contract_preamble))];
             contracts.sort((a, b) => getContractSortValue(b) - getContractSortValue(a));
-
-            // Filter to only recent contracts
             contracts = filterRecentContracts(contracts, document.getElementById('variableSelect2').value);
 
             availableContracts2 = contracts;
@@ -857,17 +840,14 @@
         // ============================================
 
         function initializeApp() {
-            // Main chart event listeners
             document.getElementById('variableSelect').addEventListener('change', onVariableChange);
             document.getElementById('contractSelect').addEventListener('change', updateChart);
             document.getElementById('momentSelect').addEventListener('change', updateChart);
 
-            // Comparison chart event listeners
             document.getElementById('variableSelect2').addEventListener('change', onVariableChange2);
             document.getElementById('contractSelect2').addEventListener('change', updateChart);
             document.getElementById('momentSelect2').addEventListener('change', updateChart);
 
-            // Comparison toggle buttons
             document.getElementById('addComparisonBtn').addEventListener('click', () => {
                 showComparison = true;
                 document.getElementById('comparisonControls').style.display = 'block';
@@ -887,24 +867,20 @@
                 updateChart();
             });
 
-            // Dual axis checkbox
             document.getElementById('dualAxisCheckbox').addEventListener('change', (e) => {
                 useDualAxis = e.target.checked;
                 updateChart();
             });
 
-            // Load initial data
             onVariableChange();
         }
 
-        // Start the app when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initializeApp);
         } else {
             initializeApp();
         }
 
-        // Load last updated timestamp
         loadLastUpdated();
     </script>
 </body>

@@ -265,7 +265,7 @@ get_moments <- function(df) {
 #' @param output_distributions Path to output CSV file for the processed probability distributions.
 #' @param output_moments Path to output CSV file for the computed moments
 #' @return No return value. Writes processed data to specified output files.
-extract_distributions <- function(input_file, output_distributions, output_moments) {
+extract_distributions <- function(input_file, output_distributions, output_moments, output_wide) {
   df <- read_data(input_file = input_file)
   df <- convert_to_daily(df)
   df <- fill_dataless_days(df)
@@ -275,4 +275,18 @@ extract_distributions <- function(input_file, output_distributions, output_momen
 
   write_csv(moments_df, output_moments)
   write_csv(df, output_distributions)
+  
+  # Add a wide distribution output for public website
+  wide <- df %>%
+    group_by(date, contract_preamble) %>%
+    mutate(volume = sum(daily_volume)) %>%
+    ungroup() %>%
+    group_by(contract_preamble) %>% 
+    filter(date != max(date)) %>%
+    ungroup() %>%
+    select(date, contract_preamble, volume, strike, probability) %>%
+    pivot_wider(names_from = strike, values_from = probability)
+  
+  write_csv(wide, output_wide)
+  
 }

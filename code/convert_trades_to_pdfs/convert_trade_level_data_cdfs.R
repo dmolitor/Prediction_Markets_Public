@@ -104,12 +104,12 @@ convert_to_daily <- function(df, method = 'last') {
         .groups = "drop"
       ) %>%
       arrange(contract_preamble, strike, date)
-  } else if (method == 'average') {
+  } else if (method == 'VWAP') {
     df %>%
       group_by(date, contract_preamble, strike) %>%
       arrange(created_time, .by_group = TRUE) %>%
       summarise(
-        yes_price    = weighted.mean(yes_price, count),
+        yes_price    = weighted.mean(yes_price, count_fp),
         daily_volume = sum(count_fp),
         .groups = "drop"
       ) %>%
@@ -466,6 +466,7 @@ get_moments <- function(df, moment_adjustment) {
   df <- df %>%
     group_by(date, contract_preamble, expiry_date) %>%
     summarise(
+      daily_volume = sum(daily_volume),
       mean     = sum(probability * strike, na.rm = TRUE) / sum(probability, na.rm = TRUE) + moment_adjustment,
       median   = weightedMedian(strike, w = probability, na.rm = TRUE, interpolate = FALSE) + moment_adjustment,
       mode = fmode(strike, w = probability, na.rm = TRUE, ties='first') + moment_adjustment,
@@ -490,20 +491,39 @@ get_moments <- function(df, moment_adjustment) {
 #' dataset
 #' @param moment_adjustment By default 0, an adjustment to central moments so that strikes get
 #' correctly interpreted as the corresponding events where they would pay off
+#' @param convert_to_daily_method Either 'VWAP' or 'last'. VWAP gives 
+#' volume-weighted average daily price aggregation. last gives last trade
+#' @param clean_data_method Either 'middle-out', 'right-to-left', or 'left-to-right'. Decides
+#' order of imposing monotonicity (see appendix A for more information)
 #' @return No return value. Writes processed data to specified output files.
-extract_distributions <- function(input_file, output_distributions, output_moments, strike_int,
-                                  days_before_horizon, moment_adjustment=0) {
+extract_distributions <- function(input_file, output_distributions, output_moments, output_wide, strike_int,
+                                  days_before_horizon, moment_adjustment=0, 
+                                  convert_to_daily_method = 'last',
+                                  clean_data_method = 'middle-out') {
   
   df <- read_data(input_file = input_file)
-  df <- convert_to_daily(df, method = 'last')
+  df <- convert_to_daily(df, method = convert_to_daily_method)
   df <- fill_dataless_days(df, days_before_horizon)
-  df <- clean_data(df)
+  df <- clean_data(df, type = clean_data_method)
   
   df <- convert_to_probabilities(df, strike_int = strike_int, days_before_horizon)
   moments_df <- get_moments(df, moment_adjustment)
 
   write_csv(moments_df, output_moments)
   write_csv(df, output_distributions)
+  
+  # wide_outputs for public website
+  wide <- df %>%
+    mutate(strike = round(strike, 3)) %>%
+    group_by(date, contract_preamble, strike) %>%
+    summarise(
+      volume = sum(daily_volume),
+      probability = first(probability),
+      .groups = "drop"
+    ) %>%
+    pivot_wider(names_from = strike, values_from = probability)
+  
+  write_csv(wide, output_wide)
 }
 
 
