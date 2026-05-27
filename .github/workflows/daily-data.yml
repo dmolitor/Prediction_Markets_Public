@@ -29,9 +29,9 @@ jobs:
         run: |
           mkdir -p data/trade_level_data
           mkdir -p data/daily_bid_ask_distribution_data
-          mkdir -p data/daily_distribution_data/wide
           mkdir -p data/daily_bid_ask_moments_data
           mkdir -p data/daily_distribution_data
+          mkdir -p data/daily_distribution_data/wide
           mkdir -p data/daily_moments_data
 
       - name: Run Python scraping script
