@@ -278,13 +278,16 @@ extract_distributions <- function(input_file, output_distributions, output_momen
   
   # Add a wide distribution output for public website
   wide <- df %>%
+    mutate(strike = round(strike, 3), date = as.Date(date)) %>%
     group_by(date, contract_preamble) %>%
-    mutate(volume = sum(daily_volume)) %>%
+    mutate(volume = sum(daily_volume)) %>%   # total per date/preamble
     ungroup() %>%
-    group_by(contract_preamble) %>% 
-    filter(date != max(date)) %>%
-    ungroup() %>%
-    select(date, contract_preamble, volume, strike, probability) %>%
+    group_by(date, contract_preamble, strike) %>%
+    summarise(
+      volume = first(volume),                # already the date/preamble total
+      probability = first(probability),
+      .groups = "drop"
+    ) %>%
     pivot_wider(names_from = strike, values_from = probability)
   
   write_csv(wide, output_wide)

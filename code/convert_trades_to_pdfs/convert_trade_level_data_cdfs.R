@@ -514,10 +514,13 @@ extract_distributions <- function(input_file, output_distributions, output_momen
   
   # wide_outputs for public website
   wide <- df %>%
-    mutate(strike = round(strike, 3)) %>%
+    mutate(strike = round(strike, 3), date = as.Date(date)) %>%
+    group_by(date, contract_preamble) %>%
+    mutate(volume = sum(daily_volume)) %>%   # total per date/preamble
+    ungroup() %>%
     group_by(date, contract_preamble, strike) %>%
     summarise(
-      volume = sum(daily_volume),
+      volume = first(volume),                # already the date/preamble total
       probability = first(probability),
       .groups = "drop"
     ) %>%
