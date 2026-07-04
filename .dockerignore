@@ -1,0 +1,7 @@
+.github/
+uv.lock
+Dockerfile
+docs/
+**/.DS_Store
+.venv/
+.dockerignore

@@ -1,5 +1,9 @@
 # Replication Package for Kalshi and the Rise of Macro Markets (2026)
 
+<!-- badges: start -->
+[![Launch RStudio Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/dmolitor/Prediction_Markets_Public/main?urlpath=rstudio)
+<!-- badges: end -->
+
 Note: In March 2026 Kalshi updated their API endpoints, changing the way you search for and access historical data. I am working on methods to continue pulling historical data, please be patient. The current code will work to pull data before the historical cutoff (100 days is how Kalshi has it set currently).
 
 ## Overview
